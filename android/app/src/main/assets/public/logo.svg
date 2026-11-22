@@ -1,0 +1,60 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512"  fill="#FFFFFF" />
+
+  <g transform="translate(20.47999999999999, 20.47999999999999) scale(0.92)">
+    <!-- TOP EMBLEM: MASSAGE / VENTOSATERAPIA THERAPY -->
+    <!-- Curved silver base arc -->
+    <path d="M 112 142 C 182 104, 330 104, 400 142" 
+          stroke="#C8CDD0" stroke-width="5" stroke-linecap="round" fill="none" />
+
+    <!-- Green Therapist / Wings / Cupping symbol -->
+    <!-- Head -->
+    <circle cx="256" cy="40" r="14" fill="#52B889" />
+
+    <!-- Left wing/cup petal -->
+    <path d="M 248 94 C 242 82, 226 66, 218 54 C 212 44, 212 34, 218 32 C 224 30, 234 38, 240 50 C 246 64, 248 82, 248 94 Z" 
+          fill="#52B889" />
+    
+    <!-- Right wing/cup petal -->
+    <path d="M 264 94 C 270 82, 286 66, 294 54 C 300 44, 300 34, 294 32 C 288 30, 278 38, 272 50 C 266 64, 264 82, 264 94 Z" 
+          fill="#52B889" />
+
+    <!-- Patient Prone Figure (Black sleek silhouette) -->
+    <!-- Patient head -->
+    <circle cx="172" cy="120" r="13" fill="#111827" />
+    <!-- Patient curved reclining back and legs -->
+    <path d="M 188 122 C 198 108, 224 92, 252 94 C 280 96, 306 122, 336 114 C 348 111, 356 103, 358 100 C 357 104, 352 116, 334 126 C 304 142, 260 130, 232 127 C 212 125, 198 126, 188 122 Z" 
+          fill="#111827" />
+
+    <!-- MONOGRAM RO: SPLIT LETTERS IN GREEN -->
+    <g fill="#52B889">
+      <!-- ===== LETTER R: TOP HALF (y: 154 to 244) ===== -->
+      <!-- Left top serif -->
+      <path d="M 72 164 L 140 164 L 140 172 L 124 172 L 124 244 L 96 244 L 96 172 L 72 172 Z" />
+      <!-- Outer upper bow -->
+      <path d="M 124 164 L 168 164 C 206 164, 226 182, 226 204 C 226 228, 206 244, 168 244 L 124 244 L 124 226 L 164 226 C 188 226, 198 217, 198 204 C 198 191, 188 182, 164 182 L 124 182 Z" />
+
+      <!-- ===== LETTER R: BOTTOM HALF (y: 294 to 418) ===== -->
+      <!-- Left stem & bottom serif -->
+      <path d="M 96 294 L 124 294 L 124 410 L 144 410 L 144 418 L 70 418 L 70 410 L 96 410 Z" />
+      <!-- Leg of R sweeping down and to the right with graceful curled terminal -->
+      <path d="M 144 294 C 158 318, 174 344, 192 372 C 208 396, 224 414, 244 418 C 250 419, 254 416, 256 412 C 253 420, 245 423, 236 423 C 216 423, 196 400, 180 372 C 164 346, 150 320, 138 294 Z" />
+
+      <!-- ===== LETTER O: TOP HALF (y: 148 to 244) ===== -->
+      <path d="M 370 148 C 428 148, 482 188, 482 244 L 448 244 C 448 198, 408 174, 370 174 C 332 174, 292 198, 292 244 L 258 244 C 258 188, 312 148, 370 148 Z" />
+
+      <!-- ===== LETTER O: BOTTOM HALF (y: 294 to 424) ===== -->
+      <path d="M 258 294 C 258 350, 312 424, 370 424 C 428 424, 482 350, 482 294 L 448 294 C 448 340, 408 398, 370 398 C 332 398, 292 340, 292 294 Z" />
+    </g>
+
+    <!-- CENTER DIVIDER TEXT: RENATA OKOTI -->
+    <text x="277" y="278" text-anchor="middle" 
+          font-family="'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" 
+          font-weight="700" font-size="34" fill="#9CA3AF" letter-spacing="6">RENATA OKOTI</text>
+
+    <!-- BOTTOM SUBTITLE: Terapeuta Miofascial e Ventosaterapia -->
+    <text x="256" y="474" text-anchor="middle" 
+          font-family="'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" 
+          font-weight="500" font-size="20.5" fill="#18181B" letter-spacing="0.4">Terapeuta Miofascial e Ventosaterapia</text>
+  </g>
+</svg>

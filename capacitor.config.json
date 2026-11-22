@@ -1,0 +1,9 @@
+{
+  "appId": "com.marlonfigueiredo.psicologia",
+  "appName": "Marlon Figueiredo - Psicologia Clínica",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}

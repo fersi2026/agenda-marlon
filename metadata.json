@@ -1,0 +1,8 @@
+{
+  "name": "Psicologos versão APK",
+  "description": "Sistema de agenda clínica, prontuários e gestão de atendimentos para Psicólogos e Clínicas de Psicologia. Gestão de sessões avulsas e pacotes mensais (4 atendimentos) com aviso automático na 4ª sessão, evolução clínica e lembretes via WhatsApp.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
