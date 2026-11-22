@@ -218,7 +218,7 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({
                       >
                         <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dotColor} shrink-0`}></span>
                         {s.recorrente && (
-                          <Repeat className="w-2.5 h-2.5 text-teal-600 shrink-0" title="Atendimento semanal recorrente" />
+                          <Repeat className="w-2.5 h-2.5 text-teal-600 shrink-0" />
                         )}
                         <span className="truncate">{s.horario} {s.pacienteNome.split(' ')[0]}</span>
                       </div>

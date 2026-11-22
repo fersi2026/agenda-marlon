@@ -34,8 +34,8 @@ export const DEMANDAS_PSICOLOGICAS: DemandaPsicologica[] = [
   { id: 'fobias', nome: 'Fobias Específicas & Medos', eixo: 'comportamento_psicossomatica', descricao: 'Medo de falar em público, agulhas, voar, dirigir ou espaços fechados' },
 ];
 
-// Compatibilidade de interface com componentes legados
-export const ZONAS_FASCIAIS = DEMANDAS_PSICOLOGICAS as any;
+// Zonas/Focos de demanda psicológica - tipado consistente
+export const ZONAS_FASCIAIS: DemandaPsicologica[] = DEMANDAS_PSICOLOGICAS;
 
 export const TIPOS_TERAPIA_CONFIG: Record<string, { 
   nome: string; 

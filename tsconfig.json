@@ -25,6 +25,8 @@
       "vite-plugin-pwa/client"
     ],
     "allowImportingTsExtensions": true,
-    "noEmit": true
+    "strict": true,
+    "noEmit": true,
+    "jsx": "react-jsx"
   }
 }
