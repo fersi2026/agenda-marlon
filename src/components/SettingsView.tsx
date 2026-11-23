@@ -39,6 +39,7 @@ import {
 import { formatarMoeda } from '../utils/dateUtils';
 import { supabase } from '../lib/supabaseClient';
 import { updateLocalPassword } from '../utils/localAuth';
+import { SuperadminPanel } from './SuperadminPanel';
 
 interface SettingsViewProps {
   configPrecos: ConfiguracaoPrecos;
@@ -446,6 +447,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           )}
         </div>
       </section>
+
+      {/* 0.1 PAINEL SUPERADMIN — GESTÃO DE USUÁRIOS E SENHAS */}
+      {supabaseConfigured && <SuperadminPanel />}
 
       {/* 1. SEÇÃO DE VALORES E PREÇOS */}
       <section className="bg-white rounded-2xl border border-stone-200 shadow-xs overflow-hidden">
