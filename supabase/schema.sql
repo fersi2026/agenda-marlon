@@ -91,6 +91,61 @@ create index if not exists idx_agendamentos_user_data on public.agendamentos (us
 create index if not exists idx_recorrencias_user on public.recorrencias (user_id);
 
 -- ============================================================================
+-- 5. Tabela de Perfis (papéis de acesso: superadmin / admin / user)
+-- Usada pelo painel Superadmin para gerenciar usuários e senhas.
+-- ============================================================================
+create table if not exists public.perfis (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  email text not null,
+  nome text,
+  role text not null default 'user' check (role in ('superadmin','admin','user')),
+  ativo boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.perfis enable row level security;
+
+drop policy if exists "perfis_select_own" on public.perfis;
+create policy "perfis_select_own" on public.perfis for select using (auth.uid() = user_id);
+
+drop policy if exists "perfis_update_own" on public.perfis;
+create policy "perfis_update_own" on public.perfis for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Trigger: cria o perfil automaticamente para cada novo usuário do Auth
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  insert into public.perfis (user_id, email, nome, role)
+  values (
+    new.id,
+    new.email,
+    coalesce(new.raw_user_meta_data->>'nome', split_part(new.email,'@',1)),
+    'user'
+  )
+  on conflict (user_id) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- Seed: cria perfis para usuários já existentes (idempotente)
+insert into public.perfis (user_id, email, nome, role)
+select id, email, split_part(email,'@',1), 'user'
+from auth.users
+on conflict (user_id) do nothing;
+
+-- Promova o seu usuário principal a superadmin (ajuste o e-mail):
+-- update public.perfis set role = 'superadmin' where email = 'seu-email@exemplo.com';
+
+-- ============================================================================
 -- Segurança: Row Level Security (RLS)
 -- Garante que cada psicólogo autenticado acesse apenas seus próprios registros.
 -- ============================================================================
@@ -151,12 +206,21 @@ grant select, insert, update, delete on public.configuracoes_clinica to authenti
 grant select, insert, update, delete on public.pacientes to authenticated;
 grant select, insert, update, delete on public.agendamentos to authenticated;
 grant select, insert, update, delete on public.recorrencias to authenticated;
+grant select, insert, update, delete on public.perfis to authenticated;
 
 -- Usuário anônimo (anon key) — modo local/offline
 grant select, insert, update, delete on public.configuracoes_clinica to anon;
 grant select, insert, update, delete on public.pacientes to anon;
 grant select, insert, update, delete on public.agendamentos to anon;
 grant select, insert, update, delete on public.recorrencias to anon;
+grant select on public.perfis to anon;
+
+-- Service role — usada apenas pela Edge Function admin-users no servidor
+grant all on public.configuracoes_clinica to service_role;
+grant all on public.pacientes to service_role;
+grant all on public.agendamentos to service_role;
+grant all on public.recorrencias to service_role;
+grant all on public.perfis to service_role;
 
 -- Recarregar o cache de schema do PostgREST
 notify pgrst, 'reload schema';
