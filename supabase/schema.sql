@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Schema SQL para Supabase (PostgreSQL + Row Level Security)
 -- Sistema: Psicólogo Marlon Figueiredo • Psicologia Clínica
--- Cole e execute este script no SQL Editor do seu projeto Supabase.
+-- Versão: v2 - Clinical Psychology Agenda
 -- ============================================================================
 
 -- 1. Tabela de Configurações da Clínica (Preços e Pacotes)
@@ -102,68 +102,71 @@ alter table public.recorrencias enable row level security;
 
 -- Políticas para configuracoes_clinica
 drop policy if exists "config_select_own" on public.configuracoes_clinica;
-create policy "config_select_own" on public.configuracoes_clinica
-  for select using (auth.uid() = user_id);
-
+create policy "config_select_own" on public.configuracoes_clinica for select using (auth.uid() = user_id);
 drop policy if exists "config_insert_own" on public.configuracoes_clinica;
-create policy "config_insert_own" on public.configuracoes_clinica
-  for insert with check (auth.uid() = user_id);
-
+create policy "config_insert_own" on public.configuracoes_clinica for insert with check (auth.uid() = user_id);
 drop policy if exists "config_update_own" on public.configuracoes_clinica;
-create policy "config_update_own" on public.configuracoes_clinica
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
+create policy "config_update_own" on public.configuracoes_clinica for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 drop policy if exists "config_delete_own" on public.configuracoes_clinica;
-create policy "config_delete_own" on public.configuracoes_clinica
-  for delete using (auth.uid() = user_id);
+create policy "config_delete_own" on public.configuracoes_clinica for delete using (auth.uid() = user_id);
 
 -- Políticas para pacientes
 drop policy if exists "pacientes_select_own" on public.pacientes;
-create policy "pacientes_select_own" on public.pacientes
-  for select using (auth.uid() = user_id);
-
+create policy "pacientes_select_own" on public.pacientes for select using (auth.uid() = user_id);
 drop policy if exists "pacientes_insert_own" on public.pacientes;
-create policy "pacientes_insert_own" on public.pacientes
-  for insert with check (auth.uid() = user_id);
-
+create policy "pacientes_insert_own" on public.pacientes for insert with check (auth.uid() = user_id);
 drop policy if exists "pacientes_update_own" on public.pacientes;
-create policy "pacientes_update_own" on public.pacientes
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
+create policy "pacientes_update_own" on public.pacientes for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 drop policy if exists "pacientes_delete_own" on public.pacientes;
-create policy "pacientes_delete_own" on public.pacientes
-  for delete using (auth.uid() = user_id);
+create policy "pacientes_delete_own" on public.pacientes for delete using (auth.uid() = user_id);
 
 -- Políticas para agendamentos
 drop policy if exists "agendamentos_select_own" on public.agendamentos;
-create policy "agendamentos_select_own" on public.agendamentos
-  for select using (auth.uid() = user_id);
-
+create policy "agendamentos_select_own" on public.agendamentos for select using (auth.uid() = user_id);
 drop policy if exists "agendamentos_insert_own" on public.agendamentos;
-create policy "agendamentos_insert_own" on public.agendamentos
-  for insert with check (auth.uid() = user_id);
-
+create policy "agendamentos_insert_own" on public.agendamentos for insert with check (auth.uid() = user_id);
 drop policy if exists "agendamentos_update_own" on public.agendamentos;
-create policy "agendamentos_update_own" on public.agendamentos
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
+create policy "agendamentos_update_own" on public.agendamentos for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 drop policy if exists "agendamentos_delete_own" on public.agendamentos;
-create policy "agendamentos_delete_own" on public.agendamentos
-  for delete using (auth.uid() = user_id);
+create policy "agendamentos_delete_own" on public.agendamentos for delete using (auth.uid() = user_id);
 
 -- Políticas para recorrencias
 drop policy if exists "recorrencias_select_own" on public.recorrencias;
-create policy "recorrencias_select_own" on public.recorrencias
-  for select using (auth.uid() = user_id);
-
+create policy "recorrencias_select_own" on public.recorrencias for select using (auth.uid() = user_id);
 drop policy if exists "recorrencias_insert_own" on public.recorrencias;
-create policy "recorrencias_insert_own" on public.recorrencias
-  for insert with check (auth.uid() = user_id);
-
+create policy "recorrencias_insert_own" on public.recorrencias for insert with check (auth.uid() = user_id);
 drop policy if exists "recorrencias_update_own" on public.recorrencias;
-create policy "recorrencias_update_own" on public.recorrencias
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
+create policy "recorrencias_update_own" on public.recorrencias for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 drop policy if exists "recorrencias_delete_own" on public.recorrencias;
-create policy "recorrencias_delete_own" on public.recorrencias
-  for delete using (auth.uid() = user_id);
+create policy "recorrencias_delete_own" on public.recorrencias for delete using (auth.uid() = user_id);
+
+-- ============================================================================
+-- PRIVILÉGIOS DE TABELA (obrigatório!)
+-- Sem estes GRANTs, os papéis "authenticated" e "anon" recebem
+-- "permission denied for table ..." mesmo com as policies RLS corretas.
+-- ============================================================================
+
+-- Usuário logado (Supabase Auth) — modo nuvem
+grant select, insert, update, delete on public.configuracoes_clinica to authenticated;
+grant select, insert, update, delete on public.pacientes to authenticated;
+grant select, insert, update, delete on public.agendamentos to authenticated;
+grant select, insert, update, delete on public.recorrencias to authenticated;
+
+-- Usuário anônimo (anon key) — modo local/offline
+grant select, insert, update, delete on public.configuracoes_clinica to anon;
+grant select, insert, update, delete on public.pacientes to anon;
+grant select, insert, update, delete on public.agendamentos to anon;
+grant select, insert, update, delete on public.recorrencias to anon;
+
+-- Recarregar o cache de schema do PostgREST
+notify pgrst, 'reload schema';
+
+-- ============================================================================
+-- Schema v2 aplicado com sucesso.
+-- Tabelas criadas: configuracoes_clinica, pacientes, agendamentos, recorrencias
+-- Policies RLS: 16 policies ativas (select/insert/update/delete para cada tabela)
+-- Privilégios: authenticated + anon com SELECT/INSERT/UPDATE/DELETE
+-- ============================================================================
+
+-- Tabelas verificadas:
+-- select table_name from information_schema.tables where table_schema = 'public' order by table_name;
