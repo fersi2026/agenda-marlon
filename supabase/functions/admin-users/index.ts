@@ -2,7 +2,7 @@
 // Edge Function: admin-users
 // Gerenciamento de usuários e senhas do consultório (somente superadmin)
 //
-// Ações: list | create | reset_password | update_role | toggle_active | delete
+// Ações: list | create | update_user | reset_password | update_role | toggle_active | delete
 //
 // Segurança:
 //  - Verifica o JWT do chamador (Authorization: Bearer <access_token>)
@@ -96,6 +96,7 @@ Deno.serve(async (req: Request) => {
       const password = String(body.password ?? '');
       const nome = String(body.nome ?? '').trim();
       const role = ['superadmin', 'admin', 'user'].includes(body.role) ? body.role : 'user';
+      const ativo = body.ativo !== undefined ? Boolean(body.ativo) : true;
 
       if (!email.includes('@')) return json({ error: 'E-mail inválido.' }, 400);
       if (password.length < 6) return json({ error: 'A senha deve ter no mínimo 6 caracteres.' }, 400);
@@ -108,19 +109,80 @@ Deno.serve(async (req: Request) => {
       });
       if (error) return json({ error: error.message }, 400);
 
+      // Se já nascer desativado, aplica banimento de login
+      if (!ativo) {
+        await admin.auth.admin.updateUserById(data.user.id, { ban_duration: '876000h' });
+      }
+
       await admin.from('perfis').upsert(
         {
           user_id: data.user.id,
           email,
           nome: nome || email.split('@')[0],
           role,
-          ativo: true,
+          ativo,
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'user_id' },
       );
 
       return json({ ok: true, user: { id: data.user.id, email: data.user.email } });
+    }
+
+    // --------------------------------------------------------- update_user
+    // Edição completa: nome, e-mail, senha (opcional), status ativo e papel
+    if (action === 'update_user') {
+      const userId = String(body.userId ?? '');
+      if (!userId) return json({ error: 'userId obrigatório.' }, 400);
+
+      const email = body.email !== undefined ? String(body.email).trim().toLowerCase() : undefined;
+      const nome = body.nome !== undefined ? String(body.nome).trim() : undefined;
+      const password = body.password !== undefined ? String(body.password) : undefined;
+      const ativo = body.ativo !== undefined ? Boolean(body.ativo) : undefined;
+      const role = body.role !== undefined ? String(body.role) : undefined;
+
+      if (email !== undefined && !email.includes('@')) return json({ error: 'E-mail inválido.' }, 400);
+      if (password !== undefined && password !== '' && password.length < 6) {
+        return json({ error: 'A senha deve ter no mínimo 6 caracteres.' }, 400);
+      }
+      if (role !== undefined && !['superadmin', 'admin', 'user'].includes(role)) {
+        return json({ error: 'Papel inválido.' }, 400);
+      }
+
+      if (userId === userData.user.id) {
+        if (role !== undefined) return json({ error: 'Você não pode alterar o seu próprio papel.' }, 400);
+        if (ativo === false) return json({ error: 'Você não pode desativar a própria conta.' }, 400);
+      }
+
+      // Atualiza dados do Auth (e-mail, senha, metadados e banimento)
+      const authUpdate: Record<string, unknown> = {};
+      if (email !== undefined && email) {
+        authUpdate.email = email;
+        authUpdate.email_confirm = true;
+      }
+      if (password !== undefined && password !== '') authUpdate.password = password;
+      if (nome !== undefined) authUpdate.user_metadata = { nome: nome || email?.split('@')[0] || userId };
+      if (ativo !== undefined) authUpdate.ban_duration = ativo ? 'none' : '876000h';
+
+      if (Object.keys(authUpdate).length > 0) {
+        const { error } = await admin.auth.admin.updateUserById(userId, authUpdate);
+        if (error) return json({ error: error.message }, 400);
+      }
+
+      // Atualiza a tabela de perfis
+      const perfilUpdate: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (email !== undefined && email) perfilUpdate.email = email;
+      if (nome !== undefined) perfilUpdate.nome = nome || null;
+      if (ativo !== undefined) perfilUpdate.ativo = ativo;
+      if (role !== undefined) perfilUpdate.role = role;
+
+      const { error: perfilError } = await admin
+        .from('perfis')
+        .update(perfilUpdate)
+        .eq('user_id', userId);
+      if (perfilError) return json({ error: perfilError.message }, 400);
+
+      return json({ ok: true });
     }
 
     // ------------------------------------------------------ reset_password

@@ -1,7 +1,11 @@
 // ============================================================================
-// Painel Superadmin — Gestão de usuários e senhas do consultório
+// Painel Superadmin — CRUD completo de usuários do consultório
 //
-// Visível apenas para usuários com role = 'superadmin' na tabela public.perfis.
+// Inserção: Nome Completo, e-mail, senha, status (Ativo/Desativado) e papel.
+// Edição:   Nome Completo, e-mail, nova senha (opcional), status e papel.
+// Exclusão: com confirmação.
+//
+// Visível apenas para usuários com role = 'superadmin' em public.perfis.
 // Todas as operações privilegiadas passam pela Edge Function "admin-users",
 // que valida o JWT do chamador e usa a service_role key somente no servidor.
 // ============================================================================
@@ -18,19 +22,22 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
-  Power,
   RefreshCw,
   Crown,
   Mail,
   X,
+  Pencil,
+  Save,
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+
+type Papel = 'superadmin' | 'admin' | 'user';
 
 interface UsuarioGerenciado {
   id: string;
   email: string;
   nome: string | null;
-  role: 'superadmin' | 'admin' | 'user';
+  role: Papel;
   ativo: boolean;
   emailConfirmed: boolean;
   lastSignIn: string | null;
@@ -68,7 +75,6 @@ async function chamarAdminUsers<T = any>(body: Record<string, unknown>): Promise
   if (!supabase) throw new Error('Supabase não configurado.');
   const { data, error } = await supabase.functions.invoke('admin-users', { body });
   if (error) {
-    // Tenta extrair a mensagem real devolvida pela função
     let mensagem = error.message;
     try {
       const contexto = (error as any)?.context;
@@ -85,29 +91,40 @@ async function chamarAdminUsers<T = any>(body: Record<string, unknown>): Promise
   return data as T;
 }
 
+const campoClasse =
+  'w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-600 focus:outline-hidden';
+const rotuloClasse = 'block text-[11px] font-semibold text-stone-700 mb-1';
+
 export const SuperadminPanel: React.FC = () => {
   const [verificando, setVerificando] = useState(true);
   const [ehSuperadmin, setEhSuperadmin] = useState(false);
+  const [meuId, setMeuId] = useState<string | null>(null);
   const [usuarios, setUsuarios] = useState<UsuarioGerenciado[]>([]);
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [sucesso, setSucesso] = useState<string | null>(null);
 
-  // Formulário de criação
+  // Inserção
   const [mostrarCriacao, setMostrarCriacao] = useState(false);
-  const [novoEmail, setNovoEmail] = useState('');
   const [novoNome, setNovoNome] = useState('');
+  const [novoEmail, setNovoEmail] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
-  const [novoPapel, setNovoPapel] = useState<'user' | 'admin' | 'superadmin'>('user');
+  const [novoAtivo, setNovoAtivo] = useState(true);
+  const [novoPapel, setNovoPapel] = useState<Papel>('user');
   const [criando, setCriando] = useState(false);
+  const [mostrarNovaSenha, setMostrarNovaSenha] = useState(false);
 
-  // Reset de senha inline
-  const [resetUserId, setResetUserId] = useState<string | null>(null);
-  const [resetSenha, setResetSenha] = useState('');
-  const [resetSalvando, setResetSalvando] = useState(false);
-  const [mostrarResetSenha, setMostrarResetSenha] = useState(false);
+  // Edição
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [editNome, setEditNome] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editSenha, setEditSenha] = useState('');
+  const [editAtivo, setEditAtivo] = useState(true);
+  const [editPapel, setEditPapel] = useState<Papel>('user');
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false);
+  const [mostrarEditSenha, setMostrarEditSenha] = useState(false);
 
-  // Confirmação de exclusão
+  // Exclusão
   const [confirmarExclusaoId, setConfirmarExclusaoId] = useState<string | null>(null);
   const [acaoEmAndamentoId, setAcaoEmAndamentoId] = useState<string | null>(null);
 
@@ -132,6 +149,7 @@ export const SuperadminPanel: React.FC = () => {
           if (ativo) setVerificando(false);
           return;
         }
+        setMeuId(userId);
         const { data: perfil } = await supabase
           .from('perfis')
           .select('role, ativo')
@@ -173,6 +191,22 @@ export const SuperadminPanel: React.FC = () => {
   if (verificando) return null;
   if (!ehSuperadmin) return null;
 
+  const limparFormCriacao = () => {
+    setNovoNome('');
+    setNovoEmail('');
+    setNovaSenha('');
+    setNovoAtivo(true);
+    setNovoPapel('user');
+    setMostrarNovaSenha(false);
+  };
+
+  const cancelarEdicao = () => {
+    setEditandoId(null);
+    setEditSenha('');
+    setMostrarEditSenha(false);
+    setErro(null);
+  };
+
   const handleCriarUsuario = async (e: React.FormEvent) => {
     e.preventDefault();
     setErro(null);
@@ -192,13 +226,11 @@ export const SuperadminPanel: React.FC = () => {
         password: novaSenha,
         nome: novoNome.trim(),
         role: novoPapel,
+        ativo: novoAtivo,
       });
-      setNovoEmail('');
-      setNovoNome('');
-      setNovaSenha('');
-      setNovoPapel('user');
+      limparFormCriacao();
       setMostrarCriacao(false);
-      exibirSucesso('Usuário criado com sucesso!');
+      exibirSucesso(`Usuário ${novoEmail.trim().toLowerCase()} criado com sucesso!`);
       await carregarUsuarios();
     } catch (e: any) {
       setErro(e?.message || 'Não foi possível criar o usuário.');
@@ -207,51 +239,45 @@ export const SuperadminPanel: React.FC = () => {
     }
   };
 
-  const handleResetSenha = async (userId: string) => {
+  const abrirEdicao = (usuario: UsuarioGerenciado) => {
     setErro(null);
-    if (resetSenha.length < 6) {
-      setErro('A nova senha deve ter no mínimo 6 caracteres.');
+    setEditandoId(usuario.id);
+    setEditNome(usuario.nome ?? '');
+    setEditEmail(usuario.email);
+    setEditSenha('');
+    setEditAtivo(usuario.ativo);
+    setEditPapel(usuario.role);
+    setMostrarEditSenha(false);
+  };
+
+  const handleSalvarEdicao = async (usuario: UsuarioGerenciado) => {
+    setErro(null);
+    if (!editEmail.includes('@')) {
+      setErro('Informe um e-mail válido.');
       return;
     }
-    setResetSalvando(true);
-    try {
-      await chamarAdminUsers({ action: 'reset_password', userId, password: resetSenha });
-      setResetUserId(null);
-      setResetSenha('');
-      setMostrarResetSenha(false);
-      exibirSucesso('Senha redefinida com sucesso!');
-    } catch (e: any) {
-      setErro(e?.message || 'Não foi possível redefinir a senha.');
-    } finally {
-      setResetSalvando(false);
+    if (editSenha !== '' && editSenha.length < 6) {
+      setErro('A nova senha deve ter no mínimo 6 caracteres (ou deixe em branco para manter).');
+      return;
     }
-  };
-
-  const handleAlterarPapel = async (userId: string, role: string) => {
-    setErro(null);
-    setAcaoEmAndamentoId(userId);
+    setSalvandoEdicao(true);
     try {
-      await chamarAdminUsers({ action: 'update_role', userId, role });
-      exibirSucesso('Papel atualizado.');
+      await chamarAdminUsers({
+        action: 'update_user',
+        userId: usuario.id,
+        nome: editNome.trim(),
+        email: editEmail.trim().toLowerCase(),
+        ativo: editAtivo,
+        role: editPapel,
+        ...(editSenha !== '' ? { password: editSenha } : {}),
+      });
+      cancelarEdicao();
+      exibirSucesso('Usuário atualizado com sucesso!');
       await carregarUsuarios();
     } catch (e: any) {
-      setErro(e?.message || 'Não foi possível alterar o papel.');
+      setErro(e?.message || 'Não foi possível salvar as alterações.');
     } finally {
-      setAcaoEmAndamentoId(null);
-    }
-  };
-
-  const handleAlternarAtivo = async (usuario: UsuarioGerenciado) => {
-    setErro(null);
-    setAcaoEmAndamentoId(usuario.id);
-    try {
-      await chamarAdminUsers({ action: 'toggle_active', userId: usuario.id, ativo: !usuario.ativo });
-      exibirSucesso(usuario.ativo ? 'Usuário desativado.' : 'Usuário reativado.');
-      await carregarUsuarios();
-    } catch (e: any) {
-      setErro(e?.message || 'Não foi possível alterar o status.');
-    } finally {
-      setAcaoEmAndamentoId(null);
+      setSalvandoEdicao(false);
     }
   };
 
@@ -280,13 +306,13 @@ export const SuperadminPanel: React.FC = () => {
           </div>
           <div>
             <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2">
-              Superadmin — Gestão de Usuários e Senhas
+              Superadmin — Gestão de Usuários
               <span className="text-[10px] font-bold uppercase tracking-wide bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full">
                 restrito
               </span>
             </h3>
             <p className="text-xs text-stone-500">
-              Crie acessos, redefina senhas, altere papéis e ative/desative contas do consultório
+              Crie, edite e exclua acessos do consultório (nome, e-mail, senha e status)
             </p>
           </div>
         </div>
@@ -330,6 +356,7 @@ export const SuperadminPanel: React.FC = () => {
             type="button"
             onClick={() => {
               setMostrarCriacao((v) => !v);
+              if (mostrarCriacao) limparFormCriacao();
               setErro(null);
             }}
             className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
@@ -339,7 +366,7 @@ export const SuperadminPanel: React.FC = () => {
           </button>
         </div>
 
-        {/* Formulário de criação */}
+        {/* Formulário de inserção */}
         {mostrarCriacao && (
           <form
             onSubmit={handleCriarUsuario}
@@ -351,52 +378,65 @@ export const SuperadminPanel: React.FC = () => {
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-semibold text-stone-700 mb-1">
-                  Nome
-                </label>
+                <label className={rotuloClasse}>Nome Completo</label>
                 <input
                   type="text"
                   value={novoNome}
                   onChange={(e) => setNovoNome(e.target.value)}
                   placeholder="Ex.: Marlon Figueiredo"
-                  className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-600 focus:outline-hidden"
+                  className={campoClasse}
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-stone-700 mb-1">
-                  E-mail *
-                </label>
+                <label className={rotuloClasse}>E-mail *</label>
                 <input
                   type="email"
                   required
                   value={novoEmail}
                   onChange={(e) => setNovoEmail(e.target.value)}
                   placeholder="usuario@exemplo.com"
-                  className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-600 focus:outline-hidden"
+                  className={campoClasse}
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-stone-700 mb-1">
-                  Senha inicial *
-                </label>
-                <input
-                  type="text"
-                  required
-                  minLength={6}
-                  value={novaSenha}
-                  onChange={(e) => setNovaSenha(e.target.value)}
-                  placeholder="Mínimo 6 caracteres"
-                  className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-600 focus:outline-hidden"
-                />
+                <label className={rotuloClasse}>Senha inicial *</label>
+                <div className="relative">
+                  <input
+                    type={mostrarNovaSenha ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    value={novaSenha}
+                    onChange={(e) => setNovaSenha(e.target.value)}
+                    placeholder="Mínimo 6 caracteres"
+                    className={`${campoClasse} pr-9`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setMostrarNovaSenha((v) => !v)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 cursor-pointer"
+                    tabIndex={-1}
+                  >
+                    {mostrarNovaSenha ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-stone-700 mb-1">
-                  Papel
-                </label>
+                <label className={rotuloClasse}>Status</label>
+                <select
+                  value={novoAtivo ? 'ativo' : 'desativado'}
+                  onChange={(e) => setNovoAtivo(e.target.value === 'ativo')}
+                  className={campoClasse}
+                >
+                  <option value="ativo">Ativo</option>
+                  <option value="desativado">Desativado</option>
+                </select>
+              </div>
+              <div>
+                <label className={rotuloClasse}>Papel</label>
                 <select
                   value={novoPapel}
-                  onChange={(e) => setNovoPapel(e.target.value as 'user' | 'admin' | 'superadmin')}
-                  className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-600 focus:outline-hidden"
+                  onChange={(e) => setNovoPapel(e.target.value as Papel)}
+                  className={campoClasse}
                 >
                   <option value="user">Usuário</option>
                   <option value="admin">Admin</option>
@@ -427,8 +467,9 @@ export const SuperadminPanel: React.FC = () => {
           <div className="divide-y divide-stone-100 border border-stone-200 rounded-xl overflow-hidden">
             {usuarios.map((usuario) => {
               const emAndamento = acaoEmAndamentoId === usuario.id;
-              const resetAberto = resetUserId === usuario.id;
+              const editando = editandoId === usuario.id;
               const excluindo = confirmarExclusaoId === usuario.id;
+              const souEu = usuario.id === meuId;
 
               return (
                 <div key={usuario.id} className="bg-white">
@@ -453,6 +494,9 @@ export const SuperadminPanel: React.FC = () => {
                         >
                           {usuario.ativo ? 'Ativo' : 'Desativado'}
                         </span>
+                        {souEu && (
+                          <span className="text-[10px] font-semibold text-stone-500">(você)</span>
+                        )}
                       </div>
                       <p className="text-[11px] text-stone-500 flex items-center gap-1 mt-0.5 truncate">
                         <Mail className="w-3 h-3 shrink-0" />
@@ -466,50 +510,18 @@ export const SuperadminPanel: React.FC = () => {
 
                     {/* Ações */}
                     <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                      <select
-                        value={usuario.role}
-                        onChange={(e) => handleAlterarPapel(usuario.id, e.target.value)}
-                        disabled={emAndamento}
-                        className="px-2 py-1.5 bg-white border border-stone-300 rounded-lg text-[11px] font-semibold text-stone-700 focus:ring-2 focus:ring-amber-600 focus:outline-hidden disabled:opacity-60"
-                        title="Alterar papel"
-                      >
-                        <option value="user">Usuário</option>
-                        <option value="admin">Admin</option>
-                        <option value="superadmin">Superadmin</option>
-                      </select>
-
                       <button
                         type="button"
-                        onClick={() => {
-                          setResetUserId(resetAberto ? null : usuario.id);
-                          setResetSenha('');
-                          setMostrarResetSenha(false);
-                          setErro(null);
-                        }}
-                        className="px-2.5 py-1.5 bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-900 rounded-lg text-[11px] font-bold transition-colors flex items-center gap-1 cursor-pointer"
-                        title="Redefinir senha"
-                      >
-                        <KeyRound className="w-3.5 h-3.5" />
-                        <span>Senha</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleAlternarAtivo(usuario)}
-                        disabled={emAndamento}
-                        className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-colors flex items-center gap-1 border cursor-pointer disabled:opacity-60 ${
-                          usuario.ativo
-                            ? 'bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-900'
-                            : 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-900'
+                        onClick={() => (editando ? cancelarEdicao() : abrirEdicao(usuario))}
+                        className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-colors flex items-center gap-1 border cursor-pointer ${
+                          editando
+                            ? 'bg-stone-100 hover:bg-stone-200 border-stone-300 text-stone-700'
+                            : 'bg-teal-50 hover:bg-teal-100 border-teal-200 text-teal-900'
                         }`}
-                        title={usuario.ativo ? 'Desativar conta' : 'Reativar conta'}
+                        title="Editar usuário"
                       >
-                        {emAndamento ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Power className="w-3.5 h-3.5" />
-                        )}
-                        <span>{usuario.ativo ? 'Desativar' : 'Ativar'}</span>
+                        {editando ? <X className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />}
+                        <span>{editando ? 'Fechar' : 'Editar'}</span>
                       </button>
 
                       <button
@@ -518,55 +530,119 @@ export const SuperadminPanel: React.FC = () => {
                           setConfirmarExclusaoId(excluindo ? null : usuario.id);
                           setErro(null);
                         }}
-                        disabled={emAndamento}
-                        className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 rounded-lg text-[11px] font-bold transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-60"
-                        title="Excluir usuário"
+                        disabled={emAndamento || souEu}
+                        className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 rounded-lg text-[11px] font-bold transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                        title={souEu ? 'Você não pode excluir a própria conta' : 'Excluir usuário'}
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        {emAndamento ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5" />
+                        )}
+                        <span>Excluir</span>
                       </button>
                     </div>
                   </div>
 
-                  {/* Reset de senha inline */}
-                  {resetAberto && (
+                  {/* Formulário de edição */}
+                  {editando && (
                     <div className="px-3.5 pb-3.5">
-                      <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl flex flex-col sm:flex-row sm:items-end gap-2">
-                        <div className="flex-1">
-                          <label className="block text-[11px] font-semibold text-stone-700 mb-1">
-                            Nova senha para {usuario.email}
-                          </label>
-                          <div className="relative">
+                      <div className="p-4 bg-stone-50 border border-stone-200 rounded-xl space-y-3">
+                        <h4 className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                          <Pencil className="w-3.5 h-3.5 text-teal-700" />
+                          Editar usuário
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className={rotuloClasse}>Nome Completo</label>
                             <input
-                              type={mostrarResetSenha ? 'text' : 'password'}
-                              minLength={6}
-                              value={resetSenha}
-                              onChange={(e) => setResetSenha(e.target.value)}
-                              placeholder="Mínimo 6 caracteres"
-                              className="w-full px-3 py-2 pr-9 bg-white border border-stone-300 rounded-lg text-xs focus:ring-2 focus:ring-teal-700 focus:outline-hidden"
+                              type="text"
+                              value={editNome}
+                              onChange={(e) => setEditNome(e.target.value)}
+                              placeholder="Nome completo"
+                              className={campoClasse}
                             />
-                            <button
-                              type="button"
-                              onClick={() => setMostrarResetSenha((v) => !v)}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 cursor-pointer"
-                              tabIndex={-1}
+                          </div>
+                          <div>
+                            <label className={rotuloClasse}>E-mail</label>
+                            <input
+                              type="email"
+                              value={editEmail}
+                              onChange={(e) => setEditEmail(e.target.value)}
+                              placeholder="email@exemplo.com"
+                              className={campoClasse}
+                            />
+                          </div>
+                          <div>
+                            <label className={rotuloClasse}>Nova senha (opcional)</label>
+                            <div className="relative">
+                              <input
+                                type={mostrarEditSenha ? 'text' : 'password'}
+                                value={editSenha}
+                                onChange={(e) => setEditSenha(e.target.value)}
+                                placeholder="Deixe em branco para manter"
+                                className={`${campoClasse} pr-9`}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setMostrarEditSenha((v) => !v)}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 cursor-pointer"
+                                tabIndex={-1}
+                              >
+                                {mostrarEditSenha ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                              </button>
+                            </div>
+                          </div>
+                          <div>
+                            <label className={rotuloClasse}>Status</label>
+                            <select
+                              value={editAtivo ? 'ativo' : 'desativado'}
+                              onChange={(e) => setEditAtivo(e.target.value === 'ativo')}
+                              disabled={souEu}
+                              className={`${campoClasse} disabled:bg-stone-100 disabled:text-stone-500`}
+                              title={souEu ? 'Você não pode desativar a própria conta' : undefined}
                             >
-                              {mostrarResetSenha ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                            </button>
+                              <option value="ativo">Ativo</option>
+                              <option value="desativado">Desativado</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className={rotuloClasse}>Papel</label>
+                            <select
+                              value={editPapel}
+                              onChange={(e) => setEditPapel(e.target.value as Papel)}
+                              disabled={souEu}
+                              className={`${campoClasse} disabled:bg-stone-100 disabled:text-stone-500`}
+                              title={souEu ? 'Você não pode alterar o próprio papel' : undefined}
+                            >
+                              <option value="user">Usuário</option>
+                              <option value="admin">Admin</option>
+                              <option value="superadmin">Superadmin</option>
+                            </select>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleResetSenha(usuario.id)}
-                          disabled={resetSalvando}
-                          className="px-3.5 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 shrink-0"
-                        >
-                          {resetSalvando ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <KeyRound className="w-3.5 h-3.5" />
-                          )}
-                          <span>{resetSalvando ? 'Salvando...' : 'Redefinir'}</span>
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={cancelarEdicao}
+                            className="px-3.5 py-2 bg-white border border-stone-300 text-stone-700 rounded-xl text-xs font-bold cursor-pointer"
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSalvarEdicao(usuario)}
+                            disabled={salvandoEdicao}
+                            className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+                          >
+                            {salvandoEdicao ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Save className="w-3.5 h-3.5" />
+                            )}
+                            <span>{salvandoEdicao ? 'Salvando...' : 'Salvar alterações'}</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -611,7 +687,7 @@ export const SuperadminPanel: React.FC = () => {
 
         <p className="text-[10px] text-stone-400 flex items-center gap-1.5">
           <ShieldCheck className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-          As senhas são gerenciadas com segurança pelo Supabase Auth. Você não pode alterar o seu próprio papel nem excluir a própria conta.
+          As senhas são gerenciadas com segurança pelo Supabase Auth. Você não pode alterar o seu próprio papel, desativar ou excluir a própria conta.
         </p>
       </div>
     </section>
